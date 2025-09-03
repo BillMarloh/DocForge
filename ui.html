@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>File Converter</title>
+  <style>
+    body{font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Inter, Arial, sans-serif; margin:24px; color:#111827}
+    h1{font-size:20px;margin:0 0 16px}
+    section{border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    input[type=file]{border:1px solid #e5e7eb;padding:8px;border-radius:8px}
+    textarea{width:100%;height:160px;border:1px solid #e5e7eb;border-radius:8px;padding:8px}
+    button{background:#111827;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer}
+    button:disabled{opacity:.5}
+    .small{font-size:12px;color:#6b7280}
+    .col{flex:1 1 300px}
+  </style>
+  <script>
+    async function postForm(url, form, token){
+      const res = await fetch(url,{method:'POST', body: form, headers: token?{Authorization:`Bearer ${token}`}:{}});
+      if(!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (res.headers.get('content-disposition')||'').split('filename=')[1]||'download.bin';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    function fillPdfOptions(form){
+      form.append('themeCss', document.getElementById('themeCss').value);
+      form.append('headerHtml', document.getElementById('headerHtml').value);
+      form.append('footerHtml', document.getElementById('footerHtml').value);
+    }
+    async function htmlToPdf(){
+      const f=new FormData();
+      const file=document.getElementById('htmlFile').files[0];
+      const text=document.getElementById('htmlText').value;
+      if(file) f.append('file',file); else f.append('html',text);
+      fillPdfOptions(f);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/html-to-pdf', f, token);
+    }
+    async function htmlToDocx(){
+      const f=new FormData();
+      const file=document.getElementById('htmlFile2').files[0];
+      const text=document.getElementById('htmlText2').value;
+      if(file) f.append('file',file); else f.append('html',text);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/html-to-docx', f, token);
+    }
+    async function docxToHtml(){
+      const f=new FormData();
+      const file=document.getElementById('docxFile').files[0];
+      f.append('file',file);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/docx-to-html', f, token);
+    }
+    async function mdToHtml(){
+      const f=new FormData();
+      const file=document.getElementById('mdFile').files[0];
+      const text=document.getElementById('mdText').value;
+      if(file) f.append('file',file); else f.append('md',text);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/md-to-html', f, token);
+    }
+    async function mdToPdf(){
+      const f=new FormData();
+      const file=document.getElementById('mdFile2').files[0];
+      const text=document.getElementById('mdText2').value;
+      if(file) f.append('file',file); else f.append('md',text);
+      fillPdfOptions(f);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/md-to-pdf', f, token);
+    }
+    async function batchZip(){
+      const f=new FormData();
+      const file=document.getElementById('zipFile').files[0];
+      f.append('file',file);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/batch-zip', f, token);
+    }
+  </script>
+</head>
+<body>
+  <h1>File Converter</h1>
+
+  <section>
+    <h3>可选鉴权</h3>
+    <div class="row">
+      <div class="col"><input id="token" placeholder="Bearer Token（如果服务端启用了）"/></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>PDF 样式与页眉/页脚（可选）</h3>
+    <div class="small">Theme CSS</div>
+    <textarea id="themeCss" placeholder="body { font-size: 12px } h1 { color: #111827 }"></textarea>
+    <div class="small">Header HTML（支持 Puppeteer 占位：<span class=\"pageNumber\"></span>）</div>
+    <textarea id="headerHtml" placeholder="<div style='font-size:10px;width:100%;text-align:center;'>My Header</div>"></textarea>
+    <div class="small">Footer HTML（默认包含页码：<span class=\"pageNumber\"></span>/<span class=\"totalPages\"></span>）</div>
+    <textarea id="footerHtml" placeholder="<div style='font-size:10px;width:100%;text-align:center;'><span class='pageNumber'></span>/<span class='totalPages'></span></div>"></textarea>
+  </section>
+
+  <section>
+    <h3>HTML → PDF</h3>
+    <div class="row">
+      <div class="col"><input id="htmlFile" type="file" accept=".html,.htm"/></div>
+      <div class="col"><button onclick="htmlToPdf()">Convert</button></div>
+    </div>
+    <div class="small">或直接粘贴 HTML：</div>
+    <textarea id="htmlText" placeholder="&lt;html&gt;...&lt;/html&gt;"></textarea>
+  </section>
+
+  <section>
+    <h3>HTML → DOCX / DOCX → HTML</h3>
+    <div class="row">
+      <div class="col"><input id="htmlFile2" type="file" accept=".html,.htm"/></div>
+      <div class="col"><button onclick="htmlToDocx()">HTML → DOCX</button></div>
+    </div>
+    <div class="small">或直接粘贴 HTML：</div>
+    <textarea id="htmlText2" placeholder="&lt;html&gt;...&lt;/html&gt;"></textarea>
+    <div class="row" style="margin-top:8px">
+      <div class="col"><input id="docxFile" type="file" accept=".docx"/></div>
+      <div class="col"><button onclick="docxToHtml()">DOCX → HTML</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Markdown → HTML</h3>
+    <div class="row">
+      <div class="col"><input id="mdFile" type="file" accept=".md,.markdown"/></div>
+      <div class="col"><button onclick="mdToHtml()">Convert</button></div>
+    </div>
+    <div class="small">或直接粘贴 Markdown：</div>
+    <textarea id="mdText" placeholder="# Title\n\nContent..."></textarea>
+  </section>
+
+  <section>
+    <h3>Markdown → PDF</h3>
+    <div class="row">
+      <div class="col"><input id="mdFile2" type="file" accept=".md,.markdown"/></div>
+      <div class="col"><button onclick="mdToPdf()">Convert</button></div>
+    </div>
+    <div class="small">或直接粘贴 Markdown：</div>
+    <textarea id="mdText2" placeholder="# Title\n\nContent..."></textarea>
+  </section>
+
+  <section>
+    <h3>文本/HTML 查找替换</h3>
+    <div class="row">
+      <div class="col"><input id="editFile" type="file"/></div>
+      <div class="col"><input id="findText" placeholder="查找..."/></div>
+      <div class="col"><input id="replText" placeholder="替换为..."/></div>
+      <div class="col"><button onclick="replaceText()">执行</button></div>
+    </div>
+    <div class="small">或直接粘贴文本：</div>
+    <textarea id="editText" placeholder="粘贴要处理的文本或 HTML..."></textarea>
+  </section>
+
+  <section>
+    <h3>批量目录转换（上传 .zip）</h3>
+    <div class="row">
+      <div class="col"><input id="zipFile" type="file" accept=".zip"/></div>
+      <div class="col"><button onclick="batchZip()">开始批量转换</button></div>
+    </div>
+    <div class="small">支持 .html → pdf/docx、.md → html/pdf、.docx → html；结果将打包为 zip 下载</div>
+  </section>
+
+  <div class="small">Server on http://localhost:3456 · 可选鉴权：设置环境变量 FILE_TOOL_TOKEN=your_token</div>
+</body>
+</html>
+
+
