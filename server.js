@@ -108,6 +108,39 @@ app.post('/convert/docx-to-html', requireAuth, upload.single('file'), async (req
   }
 });
 
+// DOCX -> PDF（通过HTML中转）
+app.post('/convert/docx-to-pdf', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No DOCX uploaded' });
+    const arrayBuffer = fs.readFileSync(req.file.path);
+    const { value: html } = await mammoth.convertToHtml({ buffer: arrayBuffer });
+    
+    const themeCss = req.body.themeCss || '';
+    const headerHtml = req.body.headerHtml || '';
+    const footerHtml = req.body.footerHtml || '';
+    const styledHtml = applyTheme(html, { themeCss, headerHtml, footerHtml });
+    
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.default.launch({ headless: 'new', args: ['--no-sandbox'] });
+    const page = await browser.newPage();
+    await page.setContent(styledHtml, { waitUntil: 'networkidle0' });
+    const outPath = path.join(outDir, `docx_${Date.now()}.pdf`);
+    await page.pdf({
+      path: outPath,
+      format: 'A4',
+      printBackground: true,
+      displayHeaderFooter: Boolean(headerHtml || footerHtml),
+      headerTemplate: headerHtml || '<div></div>',
+      footerTemplate: footerHtml || '<div style="font-size:10px;width:100%;text-align:center;"><span class="pageNumber"></span>/<span class="totalPages"></span></div>',
+      margin: { top: '24mm', right: '16mm', bottom: '24mm', left: '16mm' },
+    });
+    await browser.close();
+    res.download(outPath, 'output.pdf');
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 // Markdown -> HTML/PDF
 app.post('/convert/md-to-html', requireAuth, upload.single('file'), (req, res) => {
   try {
@@ -178,6 +211,9 @@ app.post('/convert/batch-zip', requireAuth, upload.single('file'), async (req, r
         const buf = fs.readFileSync(p);
         const { value: html } = await mammoth.convertToHtml({ buffer: buf });
         fs.writeFileSync(path.join(resultsDir, base + '.html'), html, 'utf8');
+        // 同时生成PDF
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.pdf({ path: path.join(resultsDir, base + '.pdf'), format: 'A4', printBackground: true });
       }
     }
 

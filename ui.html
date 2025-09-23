@@ -23,7 +23,9 @@
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = (res.headers.get('content-disposition')||'').split('filename=')[1]||'download.bin';
+      const contentDisposition = res.headers.get('content-disposition') || '';
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      a.download = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download.bin';
       document.body.appendChild(a); a.click(); a.remove();
     }
     function fillPdfOptions(form){
@@ -54,6 +56,14 @@
       f.append('file',file);
       const token=document.getElementById('token').value.trim();
       await postForm('/convert/docx-to-html', f, token);
+    }
+    async function docxToPdf(){
+      const f=new FormData();
+      const file=document.getElementById('docxFile2').files[0];
+      f.append('file',file);
+      fillPdfOptions(f);
+      const token=document.getElementById('token').value.trim();
+      await postForm('/convert/docx-to-pdf', f, token);
     }
     async function mdToHtml(){
       const f=new FormData();
@@ -112,7 +122,7 @@
   </section>
 
   <section>
-    <h3>HTML → DOCX / DOCX → HTML</h3>
+    <h3>HTML → DOCX / DOCX → HTML / DOCX → PDF</h3>
     <div class="row">
       <div class="col"><input id="htmlFile2" type="file" accept=".html,.htm"/></div>
       <div class="col"><button onclick="htmlToDocx()">HTML → DOCX</button></div>
@@ -122,6 +132,10 @@
     <div class="row" style="margin-top:8px">
       <div class="col"><input id="docxFile" type="file" accept=".docx"/></div>
       <div class="col"><button onclick="docxToHtml()">DOCX → HTML</button></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="col"><input id="docxFile2" type="file" accept=".docx"/></div>
+      <div class="col"><button onclick="docxToPdf()">DOCX → PDF</button></div>
     </div>
   </section>
 
@@ -163,7 +177,7 @@
       <div class="col"><input id="zipFile" type="file" accept=".zip"/></div>
       <div class="col"><button onclick="batchZip()">开始批量转换</button></div>
     </div>
-    <div class="small">支持 .html → pdf/docx、.md → html/pdf、.docx → html；结果将打包为 zip 下载</div>
+    <div class="small">支持 .html → pdf/docx、.md → html/pdf、.docx → html/pdf；结果将打包为 zip 下载</div>
   </section>
 
   <div class="small">Server on http://localhost:3456 · 可选鉴权：设置环境变量 FILE_TOOL_TOKEN=your_token</div>
