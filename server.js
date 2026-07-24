@@ -253,4 +253,4 @@ app.post('/edit/replace', requireAuth, upload.single('file'), (req, res) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3456', 10);
-app.listen(PORT, () => console.log(`File Converter → http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`DocForge → http://localhost:${PORT}`));
